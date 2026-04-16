@@ -1,37 +1,28 @@
 import SwiftUI
-import UIKit
 
 struct ScannerCameraView: View {
     @Binding var isPresented: Bool
     var onScan: (ScannedCode) -> Void
 
     @State private var showScanFeedback = false
+    private let scannerFrameSize: CGFloat = 260
 
     var body: some View {
         ZStack {
-            
-            // 📷 Camera (UIKit scanner)
-            ScannerView(onScan: { scannedValue in
+            CameraPreview(onScan: { scannedValue in
                 handleScan(value: scannedValue)
             })
             .ignoresSafeArea()
 
-            // 📝 Instruction Text
-            VStack {
-                Spacer()
-                Text("Align code within frame to scan")
-                    .foregroundColor(.white)
-                    .font(.subheadline)
-                    .padding(.bottom, 100)
-            }
+            // Static Guide
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                .frame(width: scannerFrameSize, height: scannerFrameSize)
 
-            // ❌ Close Button
             VStack {
                 HStack {
                     Spacer()
-                    Button {
-                        isPresented = false
-                    } label: {
+                    Button(action: { isPresented = false }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 32))
                             .foregroundColor(.white)
@@ -41,41 +32,47 @@ struct ScannerCameraView: View {
                     .padding()
                 }
                 Spacer()
+                Text("Ready to scan multiple codes...")
+                    .foregroundColor(.white)
+                    .font(.subheadline)
+                    .padding(.bottom, 80)
             }
 
-            // ✅ Scan Feedback
+            // ✅ Success Popup (Fades in and out)
             if showScanFeedback {
-                VStack {
+                VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 80))
+                        .font(.system(size: 70))
                         .foregroundColor(.green)
-
-                    Text("Scanned!")
-                        .font(.title2)
+                    Text("Added to List")
+                        .font(.headline)
                         .foregroundColor(.white)
                 }
                 .padding(40)
-                .background(Color.black.opacity(0.7))
-                .cornerRadius(16)
-                .shadow(radius: 10)
-                .transition(.opacity)
+                .background(Color.black.opacity(0.8))
+                .cornerRadius(20)
+                .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showScanFeedback)
     }
 
-    // MARK: - Scan Handler
     private func handleScan(value: String) {
-        let scannedCode = ScannedCode(value: value, time: Date())
-
-        // 🔔 Haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-
+        
+        // Add to list
+        let scannedCode = ScannedCode(value: value, time: Date())
         onScan(scannedCode)
 
-        showScanFeedback = true
+        // Show "Added!" feedback
+        withAnimation(.spring()) {
+            showScanFeedback = true
+        }
+        
+        // 🕒 Hide feedback after 1 second (don't close view!)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            showScanFeedback = false
+            withAnimation {
+                showScanFeedback = false
+            }
         }
     }
 }

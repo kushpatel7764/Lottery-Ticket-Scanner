@@ -11,7 +11,7 @@ import SwiftUI
 struct Lottery_Ticket_ScannerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainScannerView()
         }
     }
 }

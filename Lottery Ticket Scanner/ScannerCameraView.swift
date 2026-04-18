@@ -62,7 +62,8 @@ struct ScannerCameraView: View {
         // Add to list
         let scannedCode = ScannedCode(value: value, time: Date())
         onScan(scannedCode)
-
+        NetworkManager.sendBarcode(value) 
+        
         // Show "Added!" feedback
         withAnimation(.spring()) {
             showScanFeedback = true

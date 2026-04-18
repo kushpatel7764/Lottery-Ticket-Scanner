@@ -3,8 +3,14 @@ import Foundation
 enum NetworkManager {
     
     static func sendBarcode(_ code: String) {
-        let ip_with_port = UserDefaults.standard.string(forKey: "server_ip") ?? "192.168.0.1"
-        guard let url = URL(string: "http://\(ip_with_port)/receive") else { return }
+        guard let ip_with_port = UserDefaults.standard.string(forKey: "server_ip"), !ip_with_port.isEmpty else {
+            print("No server IP configured")
+            return
+        }
+        guard let url = URL(string: "http://\(ip_with_port)/receive") else {
+            print("Invalid server URL: \(ip_with_port)")
+            return
+        }
 
         // Percent-encode the barcode so special characters don't corrupt the form body
         guard let encodedCode = code.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {

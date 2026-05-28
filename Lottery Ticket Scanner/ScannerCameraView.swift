@@ -1,27 +1,41 @@
 import SwiftUI
 
 struct ScannerCameraView: View {
+    @EnvironmentObject var bluetooth: BluetoothManager
     @Binding var isPresented: Bool
     var onScan: (ScannedCode) -> Void
 
-    @State private var showScanFeedback = false
+    @State private var feedbackMessage: String? = nil
     private let scannerFrameSize: CGFloat = 260
 
     var body: some View {
         ZStack {
-            CameraPreview(onScan: { scannedValue in
-                handleScan(value: scannedValue)
-            })
-            .ignoresSafeArea()
+            CameraPreview(onScan: handleScan)
+                .ignoresSafeArea()
 
-            // Static Guide
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.5), lineWidth: 2)
                 .frame(width: scannerFrameSize, height: scannerFrameSize)
 
             VStack {
                 HStack {
+                    // Live connection indicator in the camera view
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(bluetooth.connectionState.color)
+                            .frame(width: 8, height: 8)
+                        Text(bluetooth.connectionState.label)
+                            .font(.caption.bold())
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(20)
+                    .padding()
+
                     Spacer()
+
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 32))
@@ -31,20 +45,24 @@ struct ScannerCameraView: View {
                     }
                     .padding()
                 }
+
                 Spacer()
-                Text("Ready to scan multiple codes...")
+
+                Text("Ready to scan multiple codes…")
                     .foregroundColor(.white)
                     .font(.subheadline)
                     .padding(.bottom, 80)
             }
 
-            // ✅ Success Popup (Fades in and out)
-            if showScanFeedback {
+            // Scan result feedback bubble
+            if let message = feedbackMessage {
                 VStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
+                    Image(systemName: bluetooth.connectionState == .connected
+                          ? "checkmark.circle.fill"
+                          : "clock.arrow.circlepath")
                         .font(.system(size: 70))
-                        .foregroundColor(.green)
-                    Text("Added to List")
+                        .foregroundColor(bluetooth.connectionState == .connected ? .green : .orange)
+                    Text(message)
                         .font(.headline)
                         .foregroundColor(.white)
                 }
@@ -58,22 +76,16 @@ struct ScannerCameraView: View {
 
     private func handleScan(value: String) {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        
-        // Add to list
+
         let scannedCode = ScannedCode(value: value, time: Date())
         onScan(scannedCode)
-        NetworkManager.sendBarcode(value) 
-        
-        // Show "Added!" feedback
-        withAnimation(.spring()) {
-            showScanFeedback = true
-        }
-        
-        // 🕒 Hide feedback after 1 second (don't close view!)
+        bluetooth.sendBarcode(value)
+
+        // Show feedback reflecting whether the Mac is connected right now
+        let msg = bluetooth.connectionState == .connected ? "Sent to Mac" : "Queued — Mac offline"
+        withAnimation(.spring()) { feedbackMessage = msg }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation {
-                showScanFeedback = false
-            }
+            withAnimation { feedbackMessage = nil }
         }
     }
 }

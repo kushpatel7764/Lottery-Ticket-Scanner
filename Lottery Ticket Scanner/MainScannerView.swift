@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainScannerView: View {
+    @StateObject private var bluetooth = BluetoothManager()
     @State private var scannedCodes: [ScannedCode] = []
     @State private var showScanner = false
 
@@ -8,15 +9,14 @@ struct MainScannerView: View {
         NavigationView {
             ZStack(alignment: .bottomTrailing) {
                 Color(UIColor.systemGroupedBackground).ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
-                    // --- 📊 Header / Stats View ---
                     headerView
-                    
+                    connectionBanner
+
                     if scannedCodes.isEmpty {
                         emptyStateView
                     } else {
-                        // --- 📜 Professional Scanned List ---
                         List {
                             ForEach(scannedCodes) { code in
                                 ScannedCodeRow(code: code)
@@ -26,15 +26,14 @@ struct MainScannerView: View {
                         .listStyle(InsetGroupedListStyle())
                     }
                 }
-                
-                // --- ➕ Floating Action Button ---
+
                 scanButton
             }
             .navigationTitle("Inventory Scanner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
+                    NavigationLink(destination: SettingsView().environmentObject(bluetooth)) {
                         Image(systemName: "gearshape.fill")
                             .foregroundColor(.primary)
                     }
@@ -43,15 +42,16 @@ struct MainScannerView: View {
             .fullScreenCover(isPresented: $showScanner) {
                 ScannerCameraView(isPresented: $showScanner) { scannedCode in
                     withAnimation(.spring()) {
-                        scannedCodes.insert(scannedCode, at: 0) // Newest at top
+                        scannedCodes.insert(scannedCode, at: 0)
                     }
                 }
+                .environmentObject(bluetooth)
             }
         }
     }
 
     // MARK: - Subviews
-    
+
     private var headerView: some View {
         HStack {
             VStack(alignment: .leading) {
@@ -70,7 +70,31 @@ struct MainScannerView: View {
         .padding()
         .background(Color(UIColor.secondarySystemGroupedBackground))
     }
-    
+
+    // Persistent strip showing Bluetooth link state and pending queue depth
+    private var connectionBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: bluetooth.connectionState.symbol)
+                .font(.caption.bold())
+            Text(bluetooth.connectionState.label)
+                .font(.caption.bold())
+            Spacer()
+            if bluetooth.pendingCount > 0 {
+                Text("\(bluetooth.pendingCount) queued")
+                    .font(.caption2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.2))
+                    .foregroundColor(.orange)
+                    .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .foregroundColor(bluetooth.connectionState.color)
+        .background(bluetooth.connectionState.color.opacity(0.08))
+    }
+
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -88,7 +112,7 @@ struct MainScannerView: View {
             Spacer()
         }
     }
-    
+
     private var scanButton: some View {
         Button(action: { showScanner = true }) {
             HStack {
@@ -106,27 +130,27 @@ struct MainScannerView: View {
         .padding(.trailing, 20)
         .padding(.bottom, 30)
     }
-    
+
     private func deleteItems(at offsets: IndexSet) {
         scannedCodes.remove(atOffsets: offsets)
     }
 }
 
 // MARK: - Row Component
+
 struct ScannedCodeRow: View {
     let code: ScannedCode
     @State private var showDetails = false
-    
+
     var body: some View {
         HStack(spacing: 15) {
-            // 1. Icon with Validation Status
             ZStack(alignment: .bottomTrailing) {
                 Image(systemName: code.isValid ? "barcode.viewfinder" : "exclamationmark.triangle.fill")
                     .foregroundColor(code.isValid ? .blue : .orange)
                     .padding(8)
                     .background(code.isValid ? Color.blue.opacity(0.1) : Color.orange.opacity(0.1))
                     .cornerRadius(8)
-                
+
                 if code.isValid {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption2)
@@ -135,26 +159,21 @@ struct ScannedCodeRow: View {
                         .offset(x: 4, y: 4)
                 }
             }
-            
-            // 2. Data Text
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(code.value)
                     .font(.system(.body, design: .monospaced))
                     .fontWeight(.semibold)
                     .lineLimit(1)
-                
                 Text(code.isValid ? "Valid Format" : "Invalid: Must be 29 digits")
                     .font(.caption)
                     .foregroundColor(code.isValid ? .secondary : .orange)
             }
-            
+
             Spacer()
-            
-            // 3. Conditional Info Button (Only shows if valid)
+
             if code.isValid {
-                Button {
-                    showDetails = true
-                } label: {
+                Button { showDetails = true } label: {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(.blue)
                         .font(.title3)
@@ -172,7 +191,7 @@ struct ScannedCodeRow: View {
                 Ticket #: \(code.getTicketNum())
                 Price: $\(code.getTicketPrice())
                 Book Amt: \(code.getBookAmount())
-                
+
                 Full Raw Data:
                 \(code.value)
                 """)

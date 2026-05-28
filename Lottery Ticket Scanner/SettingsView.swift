@@ -1,28 +1,54 @@
-//
-//  SettingsView.swift
-//  Lottery Ticket Scanner
-//
-//  Created by Kush Patel on 4/16/26.
-//
-
-
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage("server_ip") private var serverIP: String = ""
-    @AppStorage("scanner_api_key") private var scannerAPI: String = ""
-    
+    @EnvironmentObject var bluetooth: BluetoothManager
+
     var body: some View {
         Form {
-            Section(header: Text("Flask Server IP")) {
-                TextField("e.g. 192.168.12.210", text: $serverIP)
-                    .keyboardType(.numbersAndPunctuation)
-                    .autocapitalization(.none)
+            Section(header: Text("Bluetooth Status")) {
+                HStack {
+                    Image(systemName: bluetooth.connectionState.symbol)
+                        .foregroundColor(bluetooth.connectionState.color)
+                    Text(bluetooth.connectionState.label)
+                        .foregroundColor(bluetooth.connectionState.color)
+                        .fontWeight(.semibold)
+                }
+
+                if bluetooth.pendingCount > 0 {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.orange)
+                        Text("\(bluetooth.pendingCount) barcode(s) waiting to deliver")
+                            .foregroundColor(.orange)
+                    }
+                }
             }
-            Section(header: Text("Scanner API Key")) {
-                TextField("e.g. 466644dafb6aa0eb9...", text: $scannerAPI)
-                    .keyboardType(.numbersAndPunctuation)
-                    .autocapitalization(.none)
+
+            Section(header: Text("How to Connect")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("On the Mac, open Terminal and run:", systemImage: "1.circle.fill")
+                        .font(.subheadline.bold())
+                    Text("python bluetooth_bridge.py")
+                        .font(.system(.caption, design: .monospaced))
+                        .padding(8)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(6)
+
+                    Label("The script will automatically discover and connect to this iPhone.", systemImage: "2.circle.fill")
+                        .font(.subheadline)
+
+                    Label("Once connected, every scan is typed directly into your lottery app — just like a real USB scanner.", systemImage: "3.circle.fill")
+                        .font(.subheadline)
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section(header: Text("About")) {
+                LabeledContent("Connection method", value: "Bluetooth LE (CoreBluetooth)")
+                LabeledContent("Service UUID", value: "6E400001…")
+                Text("No IP address or API key is required. The Mac bridge script handles discovery automatically.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .navigationTitle("Settings")
